@@ -6,3 +6,4 @@ __pycache__/
 
 cities.csv
 app.log
+.pytest_cache

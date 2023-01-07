@@ -5,7 +5,7 @@ def check_python_version():
 
 
 def check_api():
-    from api_client import YandexWeatherAPI
+    from api.api_client import YandexWeatherAPI
 
     CITY_NAME_FOR_TEST = "MOSCOW"
 
