@@ -1,15 +1,4 @@
-# import logging
-# import threading
-# import subprocess
-# import multiprocessing
-
-from api_client import YandexWeatherAPI
-from tasks import (
-    DataFetchingTask,
-    DataCalculationTask,
-    DataAggregationTask,
-    DataAnalyzingTask,
-)
+from api.handlers.tasks import WeatherCityAnalyzer
 from utils import CITIES
 
 
@@ -17,10 +6,8 @@ def forecast_weather():
     """
     Анализ погодных условий по городам
     """
-    # city_name = "MOSCOW"
-    # ywAPI = YandexWeatherAPI()
-    # resp = ywAPI.get_forecasting(city_name)
-    pass
+    good_cities = WeatherCityAnalyzer(CITIES).get_good_cities()
+    print(f"Наиболее благоприятные города для проживания: {''.join(map(str, good_cities))}")
 
 
 if __name__ == "__main__":

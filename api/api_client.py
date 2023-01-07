@@ -1,5 +1,5 @@
-import logging
 import json
+import logging
 from urllib.request import urlopen
 
 from utils import CITIES, ERR_MESSAGE_TEMPLATE
@@ -21,9 +21,7 @@ class YandexWeatherAPI:
                 resp = json.loads(resp)
             if req.status != 200:
                 raise Exception(
-                    "Error during execute request. {}: {}".format(
-                        resp.status, resp.reason
-                    )
+                    "Error during execute request. {}: {}".format(resp.status, resp.reason)
                 )
             return resp
         except Exception as ex:
