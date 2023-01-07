@@ -1,5 +1,6 @@
 import csv
 import enum
+import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -11,9 +12,17 @@ from queue import Queue
 from api.api_client import YandexWeatherAPI
 from api.handlers.base import QueueMixin
 
+logging.basicConfig(
+    filename="app.log",
+    filemode="a",
+    format="%(name)s::%(levelname)s - %(message)s",
+    level=logging.DEBUG,
+)
+
 
 class DataFetchingTask(YandexWeatherAPI, QueueMixin):
     def fetch_cities(self, cities: list[str] | str):
+        logging.info("DataFetchingTask::fetch_cities")
         with ThreadPoolExecutor() as pool:
             for city in cities:
                 self.queue = pool.submit(self.get_forecasting, city)
@@ -50,6 +59,11 @@ class DataCalculationTask:
         try:
             return round(sum(temps) / len(temps), 1)
         except ZeroDivisionError:
+            logging.warning(
+                "DataCalculationTask::__count_overage_temperature::Недостаточно данных - {}".format(
+                    hours
+                )
+            )
             return "Недостаточно данных"
 
     @staticmethod
@@ -86,17 +100,28 @@ class DataCalculationTask:
                     "condition": cls.__count_conditions(date["hours"]),
                 }
             )
-
         temp_avg, cond_avg = DataCalculationTask.__count_common_overage(city_info["dates_info"])
         city_info["temp_avg"] = temp_avg
         city_info["cond_avg"] = cond_avg
+
         queue.put(city_info)
+        logging.debug("DataCalculationTask::format_response_info - {}".format(city_info))
 
     def __run_processes(self) -> None:
         [proc.start() for proc in self.processes]
+        logging.debug(
+            "DataCalculationTask::__run_processes: pid - name \n {}".format(
+                [f"{i.pid}-{i.name}" for i in self.processes]
+            )
+        )
 
     def __join_processes(self) -> None:
         [proc.join() for proc in self.processes]
+        logging.debug(
+            "DataCalculationTask::__join_processes: pid - name \n {}".format(
+                [f"{i.pid}-{i.name}" for i in self.processes]
+            )
+        )
 
     def calculate_cities(self, queue: Queue) -> list[dict]:
         for _ in range(queue.qsize()):
@@ -158,11 +183,13 @@ class DataAggregationTask(YandexWeatherAPI):
             row_temp[date["date"]] = date["overage_temperature"]
             row_cond[date["date"]] = date["condition"]
         self.writer.writerows([row_temp, row_cond])
+        logging.info("DataAggregationTask::__save_csv::written - {}".format(city["name"]))
 
     def aggreagate_result(self, result: list[dict]) -> None:
         with open("cities.csv", "w", newline="") as file:
             self.writer = csv.DictWriter(file, fieldnames=self.__create_base_fields(result[0]))
             self.writer.writeheader()
+            logging.info("DataAggregationTask::aggreagate_result::writeheader")
 
             with ThreadPoolExecutor() as pool:
                 pool.map(self.__save_csv, result)
