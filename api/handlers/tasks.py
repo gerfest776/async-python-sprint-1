@@ -1,23 +1,20 @@
 import csv
 import enum
-import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from functools import partial
 from multiprocessing import Manager, Process
 from multiprocessing import Queue as mpQueue
 from multiprocessing.dummy import Pool
 from queue import Queue
 
 from api.api_client import YandexWeatherAPI
+from api.common import get_logger
 from api.handlers.base import QueueMixin
+from utils import Args
 
-logging.basicConfig(
-    filename="app.log",
-    filemode="a",
-    format="%(name)s::%(levelname)s - %(message)s",
-    level=logging.DEBUG,
-)
+logging = get_logger()
 
 
 class DataFetchingTask(YandexWeatherAPI, QueueMixin):
@@ -59,11 +56,6 @@ class DataCalculationTask:
         try:
             return round(sum(temps) / len(temps), 1)
         except ZeroDivisionError:
-            logging.warning(
-                "DataCalculationTask::__count_overage_temperature::Недостаточно данных - {}".format(
-                    hours
-                )
-            )
             return "Недостаточно данных"
 
     @staticmethod
@@ -100,11 +92,20 @@ class DataCalculationTask:
                     "condition": cls.__count_conditions(date["hours"]),
                 }
             )
+            logging.debug(
+                "DataCalculationTask::format_response_info::"
+                "hours - %(hours)s ||| temp - %(temp)s ||| cond - %(cond)s",
+                Args(
+                    hours=[i["hour"] for i in date["hours"]],
+                    temp=partial(cls.__count_overage_temperature, date["hours"]),
+                    cond=partial(cls.__count_conditions, date["hours"]),
+                ),
+            )
         temp_avg, cond_avg = DataCalculationTask.__count_common_overage(city_info["dates_info"])
         city_info["temp_avg"] = temp_avg
         city_info["cond_avg"] = cond_avg
-
         queue.put(city_info)
+
         logging.debug("DataCalculationTask::format_response_info - {}".format(city_info))
 
     def __run_processes(self) -> None:

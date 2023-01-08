@@ -1,3 +1,5 @@
+from collections import UserDict
+
 CITIES = {
     "MOSCOW": "https://code.s3.yandex.net/async-module/moscow-response.json",
     "PARIS": "https://code.s3.yandex.net/async-module/paris-response.json",
@@ -29,7 +31,13 @@ def check_python_version():
         or sys.version_info.minor < MIN_MINOR_PYTHON_VER
     ):
         raise Exception(
-            "Please use python version >= {}.{}".format(
-                MIN_MAJOR_PYTHON_VER, MIN_MINOR_PYTHON_VER
-            )
+            "Please use python version >= {}.{}".format(MIN_MAJOR_PYTHON_VER, MIN_MINOR_PYTHON_VER)
         )
+
+
+class Args(UserDict):
+    def __getitem__(self, key):
+        value = super().__getitem__(key)
+        if callable(value):
+            value = value()
+        return value
